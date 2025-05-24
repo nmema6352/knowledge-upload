@@ -497,8 +497,22 @@
     </main>
 
     <script>
-        // API設定（実際のURLに置き換えてください）
-        const API_BASE_URL = 'https://your-cloud-run-url.run.app';
+        // ================================================================
+        // API エンドポイント設定（必ず設定してください）
+        // ================================================================
+        
+        // CSVダウンロード用API（クロール実行）
+        const CRAWL_API_URL = 'https://your-crawl-api.run.app/api/crawl';
+        
+        // ベクトル化処理用API（JSONL/BIN作成）
+        const PROCESS_API_URL = 'https://your-process-api.run.app/api/process';
+        
+        // ※ 同じCloud Runサービスを使う場合は以下のように設定
+        // const API_BASE_URL = 'https://your-api.run.app';
+        // const CRAWL_API_URL = `${API_BASE_URL}/api/crawl`;
+        // const PROCESS_API_URL = `${API_BASE_URL}/api/process`;
+        
+        // ================================================================
         
         // DOM要素
         const steps = document.querySelectorAll('.step');
@@ -547,7 +561,7 @@
             document.getElementById('crawlError').classList.remove('show');
 
             try {
-                const response = await fetch(`${API_BASE_URL}/api/crawl`, {
+                const response = await fetch(CRAWL_API_URL, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -661,7 +675,7 @@
                 const formData = new FormData();
                 formData.append('file', csvBlob, 'crawl_results.csv');
 
-                const response = await fetch(`${API_BASE_URL}/api/process`, {
+                const response = await fetch(PROCESS_API_URL, {
                     method: 'POST',
                     body: formData
                 });
