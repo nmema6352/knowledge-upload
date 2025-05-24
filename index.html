@@ -281,6 +281,139 @@
             display: block;
         }
 
+        /* CSVプレビュー */
+        .csv-preview {
+            margin-top: 2rem;
+            display: none;
+        }
+
+        .csv-preview.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .preview-header h3 {
+            color: var(--text-primary);
+            font-size: 1.2rem;
+        }
+
+        .row-count {
+            background: var(--primary-color);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+        }
+
+        /* テーブルコンテナ */
+        .table-container {
+            max-height: 400px;
+            overflow: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-color);
+        }
+
+        /* テーブルスタイル */
+        .csv-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        .csv-table thead {
+            position: sticky;
+            top: 0;
+            background: linear-gradient(135deg, var(--primary-color) 0%, #9f7aea 100%);
+            z-index: 10;
+        }
+
+        .csv-table th {
+            color: white;
+            font-weight: 600;
+            text-align: left;
+            padding: 1rem;
+            white-space: nowrap;
+            border-right: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .csv-table th:last-child {
+            border-right: none;
+        }
+
+        .csv-table tbody tr {
+            border-bottom: 1px solid var(--border-color);
+            transition: background-color 0.2s ease;
+        }
+
+        .csv-table tbody tr:hover {
+            background-color: #f1f5f9;
+        }
+
+        .csv-table td {
+            padding: 0.75rem 1rem;
+            border-right: 1px solid var(--border-color);
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .csv-table td:last-child {
+            border-right: none;
+        }
+
+        /* エラーメッセージ */
+        .error-message {
+            display: none;
+            margin-top: 2rem;
+            padding: 1rem;
+            background: #fed7d7;
+            border: 1px solid #fc8181;
+            border-radius: 8px;
+            color: #742a2a;
+            text-align: center;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        /* データ統計 */
+        .data-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .stat-card {
+            background: var(--bg-color);
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
         /* レスポンシブ */
         @media (max-width: 640px) {
             .header h1 {
@@ -293,6 +426,19 @@
             
             .drop-zone {
                 padding: 3rem 1rem;
+            }
+
+            .table-container {
+                max-height: 300px;
+            }
+
+            .csv-table {
+                font-size: 0.8rem;
+            }
+
+            .csv-table th,
+            .csv-table td {
+                padding: 0.5rem;
             }
         }
     </style>
@@ -327,6 +473,24 @@
                 <p id="fileSize"></p>
             </div>
 
+            <div class="error-message" id="errorMessage">
+                ❌ CSVファイルの読み込みに失敗しました。
+            </div>
+
+            <div class="csv-preview" id="csvPreview">
+                <div class="preview-header">
+                    <h3>📊 CSVプレビュー</h3>
+                    <span class="row-count" id="rowCount"></span>
+                </div>
+                <div class="table-container">
+                    <table class="csv-table" id="csvTable">
+                        <thead id="tableHead"></thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                </div>
+                <div class="data-stats" id="dataStats"></div>
+            </div>
+
             <button class="upload-button" id="uploadButton">
                 アップロードして処理を開始
             </button>
@@ -356,8 +520,15 @@
         const progressFill = document.getElementById('progressFill');
         const progressText = document.getElementById('progressText');
         const successMessage = document.getElementById('successMessage');
+        const errorMessage = document.getElementById('errorMessage');
+        const csvPreview = document.getElementById('csvPreview');
+        const rowCount = document.getElementById('rowCount');
+        const tableHead = document.getElementById('tableHead');
+        const tableBody = document.getElementById('tableBody');
+        const dataStats = document.getElementById('dataStats');
 
         let selectedFile = null;
+        let csvData = null;
 
         // ドラッグ&ドロップイベント
         dropZone.addEventListener('dragover', (e) => {
@@ -406,6 +577,165 @@
             fileInfo.classList.add('show');
             uploadButton.classList.add('show');
             successMessage.classList.remove('show');
+            errorMessage.classList.remove('show');
+
+            // CSVを読み込んでプレビュー
+            readCSV(file);
+        }
+
+        // CSVファイルの読み込み
+        function readCSV(file) {
+            const reader = new FileReader();
+            
+            reader.onload = (e) => {
+                try {
+                    const text = e.target.result;
+                    csvData = parseCSV(text);
+                    displayCSVPreview(csvData);
+                    displayStats(csvData);
+                } catch (error) {
+                    console.error('CSV解析エラー:', error);
+                    errorMessage.classList.add('show');
+                    csvPreview.classList.remove('show');
+                }
+            };
+
+            reader.onerror = () => {
+                errorMessage.classList.add('show');
+                csvPreview.classList.remove('show');
+            };
+
+            reader.readAsText(file, 'UTF-8');
+        }
+
+        // CSVパース関数
+        function parseCSV(text) {
+            const lines = text.split('\n').filter(line => line.trim());
+            if (lines.length === 0) throw new Error('空のファイル');
+
+            // ヘッダー行を解析
+            const headers = parseCSVLine(lines[0]);
+            
+            // データ行を解析
+            const data = [];
+            for (let i = 1; i < lines.length; i++) {
+                const values = parseCSVLine(lines[i]);
+                if (values.length === headers.length) {
+                    const row = {};
+                    headers.forEach((header, index) => {
+                        row[header] = values[index];
+                    });
+                    data.push(row);
+                }
+            }
+
+            return { headers, data };
+        }
+
+        // CSV行のパース（カンマ区切り、ダブルクォート対応）
+        function parseCSVLine(line) {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                
+                if (char === '"') {
+                    if (inQuotes && line[i + 1] === '"') {
+                        current += '"';
+                        i++;
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                } else if (char === ',' && !inQuotes) {
+                    result.push(current.trim());
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+
+            result.push(current.trim());
+            return result;
+        }
+
+        // CSVプレビューの表示
+        function displayCSVPreview(data) {
+            // 行数表示
+            rowCount.textContent = `${data.data.length} 行`;
+            
+            // ヘッダー作成
+            tableHead.innerHTML = '';
+            const headerRow = document.createElement('tr');
+            data.headers.forEach(header => {
+                const th = document.createElement('th');
+                th.textContent = header;
+                headerRow.appendChild(th);
+            });
+            tableHead.appendChild(headerRow);
+
+            // ボディ作成（最大50行まで表示）
+            tableBody.innerHTML = '';
+            const displayRows = Math.min(data.data.length, 50);
+            for (let i = 0; i < displayRows; i++) {
+                const tr = document.createElement('tr');
+                data.headers.forEach(header => {
+                    const td = document.createElement('td');
+                    td.textContent = data.data[i][header] || '';
+                    td.title = data.data[i][header] || ''; // ツールチップ
+                    tr.appendChild(td);
+                });
+                tableBody.appendChild(tr);
+            }
+
+            // 50行以上ある場合は省略メッセージ
+            if (data.data.length > 50) {
+                const tr = document.createElement('tr');
+                const td = document.createElement('td');
+                td.colSpan = data.headers.length;
+                td.style.textAlign = 'center';
+                td.style.fontStyle = 'italic';
+                td.style.color = 'var(--text-secondary)';
+                td.textContent = `... 他 ${data.data.length - 50} 行`;
+                tr.appendChild(td);
+                tableBody.appendChild(tr);
+            }
+
+            csvPreview.classList.add('show');
+        }
+
+        // データ統計の表示
+        function displayStats(data) {
+            dataStats.innerHTML = '';
+
+            // 統計情報を計算
+            const stats = [
+                { label: '総行数', value: data.data.length },
+                { label: '列数', value: data.headers.length },
+                { label: '総セル数', value: data.data.length * data.headers.length }
+            ];
+
+            // 各列の空でないセル数を計算
+            data.headers.forEach(header => {
+                const nonEmptyCount = data.data.filter(row => row[header] && row[header].trim()).length;
+                const percentage = Math.round((nonEmptyCount / data.data.length) * 100);
+                stats.push({
+                    label: `${header} (入力率)`,
+                    value: `${percentage}%`
+                });
+            });
+
+            // 統計カードを作成
+            stats.forEach(stat => {
+                const card = document.createElement('div');
+                card.className = 'stat-card';
+                card.innerHTML = `
+                    <div class="stat-value">${stat.value}</div>
+                    <div class="stat-label">${stat.label}</div>
+                `;
+                dataStats.appendChild(card);
+            });
         }
 
         // ファイルサイズのフォーマット
@@ -419,7 +749,7 @@
 
         // アップロード処理
         uploadButton.addEventListener('click', async () => {
-            if (!selectedFile) return;
+            if (!selectedFile || !csvData) return;
 
             uploadButton.disabled = true;
             progressContainer.classList.add('show');
@@ -435,6 +765,10 @@
                 if (progress >= 100) {
                     clearInterval(interval);
                     progressText.textContent = '処理完了！';
+                    
+                    // デバッグ用：コンソールにデータを出力
+                    console.log('CSVデータ:', csvData);
+                    
                     setTimeout(() => {
                         progressContainer.classList.remove('show');
                         successMessage.classList.add('show');
@@ -455,7 +789,9 @@
             setTimeout(() => {
                 fileInfo.classList.remove('show');
                 uploadButton.classList.remove('show');
+                csvPreview.classList.remove('show');
                 selectedFile = null;
+                csvData = null;
                 fileInput.value = '';
             }, 3000);
         }
