@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FAQ Bot Manager - CSVアップロード</title>
+    <title>FAQ Bot Manager - クロール&処理</title>
     <style>
         * {
             margin: 0;
@@ -16,6 +16,7 @@
             --primary-hover: #5a67d8;
             --secondary-color: #48bb78;
             --danger-color: #f56565;
+            --warning-color: #ed8936;
             --bg-color: #f7fafc;
             --card-bg: #ffffff;
             --text-primary: #2d3748;
@@ -25,7 +26,7 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-primary);
             line-height: 1.6;
@@ -52,393 +53,300 @@
             margin-bottom: 0.5rem;
         }
 
-        .header p {
-            opacity: 0.9;
-            font-size: 1.1rem;
-        }
-
         /* メインコンテナ */
         .container {
-            max-width: 800px;
+            max-width: 1000px;
             margin: 3rem auto;
             padding: 0 2rem;
         }
 
-        /* アップロードカード */
-        .upload-card {
+        /* ステップインジケーター */
+        .steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3rem;
+            position: relative;
+        }
+
+        .steps::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--border-color);
+            z-index: 0;
+        }
+
+        .step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .step-number {
+            width: 40px;
+            height: 40px;
+            background: var(--card-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .step.active .step-number {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .step.completed .step-number {
+            background: var(--secondary-color);
+            color: white;
+            border-color: var(--secondary-color);
+        }
+
+        .step-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .step.active .step-label {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        /* カード */
+        .card {
             background: var(--card-bg);
             border-radius: 16px;
             box-shadow: var(--shadow);
-            padding: 3rem;
-            transition: transform 0.2s ease;
-        }
-
-        .upload-card:hover {
-            transform: translateY(-2px);
-        }
-
-        /* ドラッグ&ドロップエリア */
-        .drop-zone {
-            border: 3px dashed var(--border-color);
-            border-radius: 12px;
-            padding: 4rem 2rem;
-            text-align: center;
+            padding: 2.5rem;
+            margin-bottom: 2rem;
             transition: all 0.3s ease;
-            cursor: pointer;
-            background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
         }
 
-        .drop-zone:hover {
-            border-color: var(--primary-color);
-            background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+        .card.disabled {
+            opacity: 0.5;
+            pointer-events: none;
         }
 
-        .drop-zone.drag-over {
-            border-color: var(--primary-color);
-            background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
-            transform: scale(1.02);
-        }
-
-        .upload-icon {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 1.5rem;
-            background: linear-gradient(135deg, var(--primary-color) 0%, #9f7aea 100%);
-            border-radius: 50%;
+        .card h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
             display: flex;
             align-items: center;
-            justify-content: center;
-            animation: pulse 2s infinite;
+            gap: 0.5rem;
         }
 
-        @keyframes pulse {
-            0% {
-                box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.4);
-            }
-            70% {
-                box-shadow: 0 0 0 20px rgba(102, 126, 234, 0);
-            }
-            100% {
-                box-shadow: 0 0 0 0 rgba(102, 126, 234, 0);
-            }
+        /* フォームグループ */
+        .form-group {
+            margin-bottom: 1.5rem;
         }
 
-        .upload-icon svg {
-            width: 40px;
-            height: 40px;
-            fill: white;
-        }
-
-        .drop-zone h3 {
-            font-size: 1.5rem;
-            margin-bottom: 1rem;
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
             color: var(--text-primary);
         }
 
-        .drop-zone p {
-            color: var(--text-secondary);
-            margin-bottom: 2rem;
+        .form-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
         }
 
-        /* ファイル選択ボタン */
-        .file-input {
-            display: none;
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
         }
 
-        .file-button {
-            display: inline-block;
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        /* ボタン */
+        .btn {
+            padding: 0.75rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
             background: var(--primary-color);
             color: white;
-            padding: 0.75rem 2rem;
-            border-radius: 8px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            cursor: pointer;
-            border: none;
-            font-size: 1rem;
         }
 
-        .file-button:hover {
+        .btn-primary:hover {
             background: var(--primary-hover);
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
         }
 
-        /* ファイル情報表示 */
-        .file-info {
-            margin-top: 2rem;
-            padding: 1.5rem;
-            background: var(--bg-color);
-            border-radius: 8px;
-            display: none;
-        }
-
-        .file-info.show {
-            display: block;
-            animation: slideIn 0.3s ease;
-        }
-
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .file-info h4 {
-            color: var(--text-primary);
-            margin-bottom: 0.5rem;
-        }
-
-        .file-info p {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-
-        /* アップロードボタン */
-        .upload-button {
-            width: 100%;
-            padding: 1rem;
+        .btn-secondary {
             background: var(--secondary-color);
             color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 1.1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-top: 1.5rem;
-            display: none;
         }
 
-        .upload-button.show {
-            display: block;
-        }
-
-        .upload-button:hover {
+        .btn-secondary:hover {
             background: #38a169;
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
         }
 
-        .upload-button:disabled {
+        .btn-warning {
+            background: var(--warning-color);
+            color: white;
+        }
+
+        .btn:disabled {
             background: var(--text-secondary);
             cursor: not-allowed;
             transform: none;
         }
 
-        /* プログレスバー */
-        .progress-container {
-            margin-top: 2rem;
+        /* ローディング */
+        .loading {
             display: none;
+            text-align: center;
+            padding: 2rem;
         }
 
-        .progress-container.show {
+        .loading.show {
             display: block;
         }
 
-        .progress-bar {
-            width: 100%;
-            height: 8px;
-            background: var(--border-color);
-            border-radius: 4px;
-            overflow: hidden;
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            margin: 0 auto 1rem;
+            animation: spin 1s linear infinite;
         }
 
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-            width: 0;
-            transition: width 0.3s ease;
-            border-radius: 4px;
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
 
-        .progress-text {
-            text-align: center;
-            margin-top: 0.5rem;
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-
-        /* 成功メッセージ */
-        .success-message {
+        /* 結果表示 */
+        .result-section {
             display: none;
             margin-top: 2rem;
-            padding: 1rem;
-            background: #c6f6d5;
-            border: 1px solid #9ae6b4;
+            padding: 1.5rem;
+            background: var(--bg-color);
             border-radius: 8px;
-            color: #276749;
-            text-align: center;
-            animation: slideIn 0.3s ease;
+            border: 1px solid var(--border-color);
         }
 
-        .success-message.show {
+        .result-section.show {
             display: block;
+        }
+
+        .download-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
         }
 
         /* CSVプレビュー */
         .csv-preview {
-            margin-top: 2rem;
-            display: none;
-        }
-
-        .csv-preview.show {
-            display: block;
-            animation: slideIn 0.3s ease;
-        }
-
-        .preview-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-        }
-
-        .preview-header h3 {
-            color: var(--text-primary);
-            font-size: 1.2rem;
-        }
-
-        .row-count {
-            background: var(--primary-color);
-            color: white;
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.85rem;
-        }
-
-        /* テーブルコンテナ */
-        .table-container {
-            max-height: 400px;
+            max-height: 300px;
             overflow: auto;
             border: 1px solid var(--border-color);
             border-radius: 8px;
-            background: var(--bg-color);
+            margin-top: 1rem;
         }
 
-        /* テーブルスタイル */
         .csv-table {
             width: 100%;
             border-collapse: collapse;
             font-size: 0.9rem;
         }
 
-        .csv-table thead {
+        .csv-table th {
+            background: var(--bg-color);
+            padding: 0.75rem;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid var(--border-color);
             position: sticky;
             top: 0;
-            background: linear-gradient(135deg, var(--primary-color) 0%, #9f7aea 100%);
-            z-index: 10;
-        }
-
-        .csv-table th {
-            color: white;
-            font-weight: 600;
-            text-align: left;
-            padding: 1rem;
-            white-space: nowrap;
-            border-right: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .csv-table th:last-child {
-            border-right: none;
-        }
-
-        .csv-table tbody tr {
-            border-bottom: 1px solid var(--border-color);
-            transition: background-color 0.2s ease;
-        }
-
-        .csv-table tbody tr:hover {
-            background-color: #f1f5f9;
         }
 
         .csv-table td {
-            padding: 0.75rem 1rem;
-            border-right: 1px solid var(--border-color);
-            max-width: 300px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
         }
 
-        .csv-table td:last-child {
-            border-right: none;
-        }
-
-        /* エラーメッセージ */
-        .error-message {
-            display: none;
-            margin-top: 2rem;
+        /* メッセージ */
+        .message {
             padding: 1rem;
-            background: #fed7d7;
-            border: 1px solid #fc8181;
             border-radius: 8px;
-            color: #742a2a;
-            text-align: center;
+            margin-top: 1rem;
+            display: none;
         }
 
-        .error-message.show {
+        .message.show {
             display: block;
         }
 
-        /* データ統計 */
-        .data-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 1rem;
-            margin-top: 1.5rem;
+        .message-success {
+            background: #c6f6d5;
+            color: #276749;
+            border: 1px solid #9ae6b4;
         }
 
-        .stat-card {
-            background: var(--bg-color);
-            padding: 1rem;
-            border-radius: 8px;
-            text-align: center;
-            border: 1px solid var(--border-color);
+        .message-error {
+            background: #fed7d7;
+            color: #742a2a;
+            border: 1px solid #fc8181;
         }
 
-        .stat-value {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--primary-color);
-        }
-
-        .stat-label {
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-            margin-top: 0.25rem;
+        .message-warning {
+            background: #feebc8;
+            color: #744210;
+            border: 1px solid #f6ad55;
         }
 
         /* レスポンシブ */
-        @media (max-width: 640px) {
-            .header h1 {
-                font-size: 1.5rem;
-            }
-            
-            .upload-card {
-                padding: 2rem 1.5rem;
-            }
-            
-            .drop-zone {
-                padding: 3rem 1rem;
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
             }
 
-            .table-container {
-                max-height: 300px;
+            .steps {
+                flex-direction: column;
+                gap: 1rem;
             }
 
-            .csv-table {
-                font-size: 0.8rem;
+            .steps::before {
+                display: none;
             }
 
-            .csv-table th,
-            .csv-table td {
-                padding: 0.5rem;
+            .card {
+                padding: 1.5rem;
             }
         }
     </style>
@@ -447,354 +355,331 @@
     <header class="header">
         <div class="header-content">
             <h1>FAQ Bot Manager</h1>
-            <p>簡単3ステップでFAQデータを登録</p>
+            <p>Webサイトをクロールして自動でFAQデータを生成</p>
         </div>
     </header>
 
     <main class="container">
-        <div class="upload-card">
-            <div class="drop-zone" id="dropZone">
-                <div class="upload-icon">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/>
+        <!-- ステップインジケーター -->
+        <div class="steps">
+            <div class="step active" id="step1">
+                <div class="step-number">1</div>
+                <div class="step-label">クロール設定</div>
+            </div>
+            <div class="step" id="step2">
+                <div class="step-number">2</div>
+                <div class="step-label">CSV確認</div>
+            </div>
+            <div class="step" id="step3">
+                <div class="step-number">3</div>
+                <div class="step-label">ベクトル化処理</div>
+            </div>
+        </div>
+
+        <!-- Step 1: クロール設定 -->
+        <div class="card" id="crawlCard">
+            <h2>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="2" y1="12" x2="22" y2="12"></line>
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                </svg>
+                クロール設定
+            </h2>
+
+            <form id="crawlForm">
+                <div class="form-group">
+                    <label class="form-label" for="startUrl">開始URL</label>
+                    <input type="url" id="startUrl" class="form-input" placeholder="https://example.com" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="maxPages">最大ページ数</label>
+                        <input type="number" id="maxPages" class="form-input" value="10" min="1" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="targetClass">取得対象クラス</label>
+                        <input type="text" id="targetClass" class="form-input" placeholder="product-text">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="linkKeywords">リンクフィルター（カンマ区切り）</label>
+                    <input type="text" id="linkKeywords" class="form-input" placeholder="?pid=, /products/">
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"></polyline>
                     </svg>
+                    クロール開始
+                </button>
+            </form>
+
+            <div class="loading" id="crawlLoading">
+                <div class="spinner"></div>
+                <p>クロール中... しばらくお待ちください</p>
+            </div>
+
+            <div class="message message-error" id="crawlError"></div>
+        </div>
+
+        <!-- Step 2: CSV確認 -->
+        <div class="card disabled" id="csvCard">
+            <h2>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                CSVダウンロード & 確認
+            </h2>
+
+            <div class="result-section" id="csvResult">
+                <div class="download-info">
+                    <div>
+                        <h3>クロール結果</h3>
+                        <p class="text-secondary">取得ページ数: <span id="pageCount">0</span></p>
+                    </div>
+                    <button class="btn btn-secondary" id="downloadBtn">
+                        CSVダウンロード
+                    </button>
                 </div>
-                <h3>CSVファイルをドロップ</h3>
-                <p>または</p>
-                <label for="fileInput" class="file-button">
-                    ファイルを選択
-                </label>
-                <input type="file" id="fileInput" class="file-input" accept=".csv">
-            </div>
 
-            <div class="file-info" id="fileInfo">
-                <h4>選択されたファイル</h4>
-                <p id="fileName"></p>
-                <p id="fileSize"></p>
-            </div>
+                <div class="csv-preview" id="csvPreview"></div>
 
-            <div class="error-message" id="errorMessage">
-                ❌ CSVファイルの読み込みに失敗しました。
-            </div>
-
-            <div class="csv-preview" id="csvPreview">
-                <div class="preview-header">
-                    <h3>📊 CSVプレビュー</h3>
-                    <span class="row-count" id="rowCount"></span>
+                <div class="message message-warning show">
+                    ⚠️ CSVをダウンロードして内容を確認してください。問題なければ次のステップへ進んでください。
                 </div>
-                <div class="table-container">
-                    <table class="csv-table" id="csvTable">
-                        <thead id="tableHead"></thead>
-                        <tbody id="tableBody"></tbody>
-                    </table>
-                </div>
-                <div class="data-stats" id="dataStats"></div>
-            </div>
 
-            <button class="upload-button" id="uploadButton">
-                アップロードして処理を開始
+                <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
+                    <button class="btn btn-primary" id="proceedBtn">
+                        内容確認OK、次へ進む
+                    </button>
+                    <button class="btn btn-warning" id="retryBtn">
+                        設定を変更して再実行
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: ベクトル化処理 -->
+        <div class="card disabled" id="processCard">
+            <h2>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                </svg>
+                ベクトル化 & GCSアップロード
+            </h2>
+
+            <p style="margin-bottom: 1.5rem;">
+                CSVデータをベクトル化してGCSにアップロードします。この処理には数分かかる場合があります。
+            </p>
+
+            <button class="btn btn-secondary" id="processBtn">
+                ベクトル化処理を開始
             </button>
 
-            <div class="progress-container" id="progressContainer">
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progressFill"></div>
-                </div>
-                <p class="progress-text" id="progressText">アップロード中...</p>
+            <div class="loading" id="processLoading">
+                <div class="spinner"></div>
+                <p>ベクトル化処理中...</p>
             </div>
 
-            <div class="success-message" id="successMessage">
-                ✅ アップロードが完了しました！
+            <div class="message message-success" id="processSuccess">
+                ✅ ベクトル化とGCSアップロードが完了しました！
             </div>
+
+            <div class="message message-error" id="processError"></div>
         </div>
     </main>
 
     <script>
-        // DOM要素の取得
-        const dropZone = document.getElementById('dropZone');
-        const fileInput = document.getElementById('fileInput');
-        const fileInfo = document.getElementById('fileInfo');
-        const fileName = document.getElementById('fileName');
-        const fileSize = document.getElementById('fileSize');
-        const uploadButton = document.getElementById('uploadButton');
-        const progressContainer = document.getElementById('progressContainer');
-        const progressFill = document.getElementById('progressFill');
-        const progressText = document.getElementById('progressText');
-        const successMessage = document.getElementById('successMessage');
-        const errorMessage = document.getElementById('errorMessage');
-        const csvPreview = document.getElementById('csvPreview');
-        const rowCount = document.getElementById('rowCount');
-        const tableHead = document.getElementById('tableHead');
-        const tableBody = document.getElementById('tableBody');
-        const dataStats = document.getElementById('dataStats');
-
-        let selectedFile = null;
+        // API設定（実際のURLに置き換えてください）
+        const API_BASE_URL = 'https://your-cloud-run-url.run.app';
+        
+        // DOM要素
+        const steps = document.querySelectorAll('.step');
+        const cards = {
+            crawl: document.getElementById('crawlCard'),
+            csv: document.getElementById('csvCard'),
+            process: document.getElementById('processCard')
+        };
+        
         let csvData = null;
+        let csvBlob = null;
 
-        // ドラッグ&ドロップイベント
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('drag-over');
-        });
-
-        dropZone.addEventListener('dragleave', () => {
-            dropZone.classList.remove('drag-over');
-        });
-
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('drag-over');
-            
-            const files = e.dataTransfer.files;
-            if (files.length > 0 && files[0].type === 'text/csv') {
-                handleFile(files[0]);
-            } else {
-                alert('CSVファイルを選択してください。');
-            }
-        });
-
-        // クリックでファイル選択
-        dropZone.addEventListener('click', () => {
-            fileInput.click();
-        });
-
-        // ファイル選択イベント
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                handleFile(e.target.files[0]);
-            }
-        });
-
-        // ファイル処理
-        function handleFile(file) {
-            if (file.type !== 'text/csv') {
-                alert('CSVファイルを選択してください。');
-                return;
-            }
-
-            selectedFile = file;
-            fileName.textContent = file.name;
-            fileSize.textContent = `ファイルサイズ: ${formatFileSize(file.size)}`;
-            fileInfo.classList.add('show');
-            uploadButton.classList.add('show');
-            successMessage.classList.remove('show');
-            errorMessage.classList.remove('show');
-
-            // CSVを読み込んでプレビュー
-            readCSV(file);
-        }
-
-        // CSVファイルの読み込み
-        function readCSV(file) {
-            const reader = new FileReader();
-            
-            reader.onload = (e) => {
-                try {
-                    const text = e.target.result;
-                    csvData = parseCSV(text);
-                    displayCSVPreview(csvData);
-                    displayStats(csvData);
-                } catch (error) {
-                    console.error('CSV解析エラー:', error);
-                    errorMessage.classList.add('show');
-                    csvPreview.classList.remove('show');
+        // ステップ管理
+        function setActiveStep(stepNumber) {
+            steps.forEach((step, index) => {
+                if (index < stepNumber - 1) {
+                    step.classList.add('completed');
+                    step.classList.remove('active');
+                } else if (index === stepNumber - 1) {
+                    step.classList.add('active');
+                    step.classList.remove('completed');
+                } else {
+                    step.classList.remove('active', 'completed');
                 }
-            };
+            });
 
-            reader.onerror = () => {
-                errorMessage.classList.add('show');
-                csvPreview.classList.remove('show');
-            };
-
-            reader.readAsText(file, 'UTF-8');
+            // カードの有効/無効化
+            Object.values(cards).forEach(card => card.classList.add('disabled'));
+            if (stepNumber === 1) cards.crawl.classList.remove('disabled');
+            if (stepNumber === 2) cards.csv.classList.remove('disabled');
+            if (stepNumber === 3) cards.process.classList.remove('disabled');
         }
 
-        // CSVパース関数
+        // クロールフォーム送信
+        document.getElementById('crawlForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                url: document.getElementById('startUrl').value,
+                max_pages: parseInt(document.getElementById('maxPages').value),
+                target_class: document.getElementById('targetClass').value,
+                link_keywords: document.getElementById('linkKeywords').value.split(',').map(k => k.trim()).filter(k => k)
+            };
+
+            document.getElementById('crawlLoading').classList.add('show');
+            document.getElementById('crawlError').classList.remove('show');
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/crawl`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`エラー: ${response.statusText}`);
+                }
+
+                // CSVをBlobとして受け取る
+                csvBlob = await response.blob();
+                const text = await csvBlob.text();
+                csvData = parseCSV(text);
+
+                // CSV確認画面を表示
+                displayCSVPreview(csvData);
+                setActiveStep(2);
+                document.getElementById('csvResult').classList.add('show');
+
+            } catch (error) {
+                document.getElementById('crawlError').textContent = error.message;
+                document.getElementById('crawlError').classList.add('show');
+            } finally {
+                document.getElementById('crawlLoading').classList.remove('show');
+            }
+        });
+
+        // CSV解析関数
         function parseCSV(text) {
             const lines = text.split('\n').filter(line => line.trim());
-            if (lines.length === 0) throw new Error('空のファイル');
-
-            // ヘッダー行を解析
-            const headers = parseCSVLine(lines[0]);
-            
-            // データ行を解析
+            const headers = lines[0].split(',').map(h => h.trim());
             const data = [];
+            
             for (let i = 1; i < lines.length; i++) {
-                const values = parseCSVLine(lines[i]);
-                if (values.length === headers.length) {
-                    const row = {};
-                    headers.forEach((header, index) => {
-                        row[header] = values[index];
-                    });
-                    data.push(row);
-                }
+                const values = lines[i].split(',');
+                const row = {};
+                headers.forEach((header, index) => {
+                    row[header] = values[index] || '';
+                });
+                data.push(row);
             }
-
+            
             return { headers, data };
         }
 
-        // CSV行のパース（カンマ区切り、ダブルクォート対応）
-        function parseCSVLine(line) {
-            const result = [];
-            let current = '';
-            let inQuotes = false;
-
-            for (let i = 0; i < line.length; i++) {
-                const char = line[i];
-                
-                if (char === '"') {
-                    if (inQuotes && line[i + 1] === '"') {
-                        current += '"';
-                        i++;
-                    } else {
-                        inQuotes = !inQuotes;
-                    }
-                } else if (char === ',' && !inQuotes) {
-                    result.push(current.trim());
-                    current = '';
-                } else {
-                    current += char;
-                }
-            }
-
-            result.push(current.trim());
-            return result;
-        }
-
-        // CSVプレビューの表示
-        function displayCSVPreview(data) {
-            // 行数表示
-            rowCount.textContent = `${data.data.length} 行`;
+        // CSVプレビュー表示
+        function displayCSVPreview(csvData) {
+            document.getElementById('pageCount').textContent = csvData.data.length;
             
-            // ヘッダー作成
-            tableHead.innerHTML = '';
+            const table = document.createElement('table');
+            table.className = 'csv-table';
+            
+            // ヘッダー
+            const thead = document.createElement('thead');
             const headerRow = document.createElement('tr');
-            data.headers.forEach(header => {
+            csvData.headers.forEach(header => {
                 const th = document.createElement('th');
                 th.textContent = header;
                 headerRow.appendChild(th);
             });
-            tableHead.appendChild(headerRow);
-
-            // ボディ作成（最大50行まで表示）
-            tableBody.innerHTML = '';
-            const displayRows = Math.min(data.data.length, 50);
-            for (let i = 0; i < displayRows; i++) {
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+            
+            // ボディ（最初の10行のみ表示）
+            const tbody = document.createElement('tbody');
+            csvData.data.slice(0, 10).forEach(row => {
                 const tr = document.createElement('tr');
-                data.headers.forEach(header => {
+                csvData.headers.forEach(header => {
                     const td = document.createElement('td');
-                    td.textContent = data.data[i][header] || '';
-                    td.title = data.data[i][header] || ''; // ツールチップ
+                    td.textContent = row[header];
                     tr.appendChild(td);
                 });
-                tableBody.appendChild(tr);
-            }
-
-            // 50行以上ある場合は省略メッセージ
-            if (data.data.length > 50) {
-                const tr = document.createElement('tr');
-                const td = document.createElement('td');
-                td.colSpan = data.headers.length;
-                td.style.textAlign = 'center';
-                td.style.fontStyle = 'italic';
-                td.style.color = 'var(--text-secondary)';
-                td.textContent = `... 他 ${data.data.length - 50} 行`;
-                tr.appendChild(td);
-                tableBody.appendChild(tr);
-            }
-
-            csvPreview.classList.add('show');
-        }
-
-        // データ統計の表示
-        function displayStats(data) {
-            dataStats.innerHTML = '';
-
-            // 統計情報を計算
-            const stats = [
-                { label: '総行数', value: data.data.length },
-                { label: '列数', value: data.headers.length },
-                { label: '総セル数', value: data.data.length * data.headers.length }
-            ];
-
-            // 各列の空でないセル数を計算
-            data.headers.forEach(header => {
-                const nonEmptyCount = data.data.filter(row => row[header] && row[header].trim()).length;
-                const percentage = Math.round((nonEmptyCount / data.data.length) * 100);
-                stats.push({
-                    label: `${header} (入力率)`,
-                    value: `${percentage}%`
-                });
+                tbody.appendChild(tr);
             });
-
-            // 統計カードを作成
-            stats.forEach(stat => {
-                const card = document.createElement('div');
-                card.className = 'stat-card';
-                card.innerHTML = `
-                    <div class="stat-value">${stat.value}</div>
-                    <div class="stat-label">${stat.label}</div>
-                `;
-                dataStats.appendChild(card);
-            });
+            table.appendChild(tbody);
+            
+            document.getElementById('csvPreview').innerHTML = '';
+            document.getElementById('csvPreview').appendChild(table);
         }
 
-        // ファイルサイズのフォーマット
-        function formatFileSize(bytes) {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-
-        // アップロード処理
-        uploadButton.addEventListener('click', async () => {
-            if (!selectedFile || !csvData) return;
-
-            uploadButton.disabled = true;
-            progressContainer.classList.add('show');
-            progressFill.style.width = '0%';
-
-            // アップロードのシミュレーション
-            let progress = 0;
-            const interval = setInterval(() => {
-                progress += 10;
-                progressFill.style.width = progress + '%';
-                progressText.textContent = `処理中... ${progress}%`;
-
-                if (progress >= 100) {
-                    clearInterval(interval);
-                    progressText.textContent = '処理完了！';
-                    
-                    // デバッグ用：コンソールにデータを出力
-                    console.log('CSVデータ:', csvData);
-                    
-                    setTimeout(() => {
-                        progressContainer.classList.remove('show');
-                        successMessage.classList.add('show');
-                        uploadButton.disabled = false;
-                        resetForm();
-                    }, 1000);
-                }
-            }, 200);
-
-            // 実際のアップロード処理はここに実装
-            // const formData = new FormData();
-            // formData.append('file', selectedFile);
-            // await fetch('/api/upload', { method: 'POST', body: formData });
+        // CSVダウンロード
+        document.getElementById('downloadBtn').addEventListener('click', () => {
+            const url = URL.createObjectURL(csvBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'crawl_results.csv';
+            a.click();
+            URL.revokeObjectURL(url);
         });
 
-        // フォームのリセット
-        function resetForm() {
-            setTimeout(() => {
-                fileInfo.classList.remove('show');
-                uploadButton.classList.remove('show');
-                csvPreview.classList.remove('show');
-                selectedFile = null;
-                csvData = null;
-                fileInput.value = '';
-            }, 3000);
-        }
+        // 次へ進む
+        document.getElementById('proceedBtn').addEventListener('click', () => {
+            setActiveStep(3);
+        });
+
+        // 再実行
+        document.getElementById('retryBtn').addEventListener('click', () => {
+            setActiveStep(1);
+            document.getElementById('csvResult').classList.remove('show');
+        });
+
+        // ベクトル化処理
+        document.getElementById('processBtn').addEventListener('click', async () => {
+            document.getElementById('processLoading').classList.add('show');
+            document.getElementById('processError').classList.remove('show');
+            document.getElementById('processSuccess').classList.remove('show');
+
+            try {
+                const formData = new FormData();
+                formData.append('file', csvBlob, 'crawl_results.csv');
+
+                const response = await fetch(`${API_BASE_URL}/api/process`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`エラー: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                document.getElementById('processSuccess').classList.add('show');
+
+            } catch (error) {
+                document.getElementById('processError').textContent = error.message;
+                document.getElementById('processError').classList.add('show');
+            } finally {
+                document.getElementById('processLoading').classList.remove('show');
+            }
+        });
     </script>
 </body>
 </html>
