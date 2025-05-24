@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FAQ Bot Manager - CSVアップロード</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #667eea;
+            --primary-hover: #5a67d8;
+            --secondary-color: #48bb78;
+            --danger-color: #f56565;
+            --bg-color: #f7fafc;
+            --card-bg: #ffffff;
+            --text-primary: #2d3748;
+            --text-secondary: #718096;
+            --border-color: #e2e8f0;
+            --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* ヘッダー */
+        .header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #9f7aea 100%);
+            color: white;
+            padding: 2rem 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        /* メインコンテナ */
+        .container {
+            max-width: 800px;
+            margin: 3rem auto;
+            padding: 0 2rem;
+        }
+
+        /* アップロードカード */
+        .upload-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            padding: 3rem;
+            transition: transform 0.2s ease;
+        }
+
+        .upload-card:hover {
+            transform: translateY(-2px);
+        }
+
+        /* ドラッグ&ドロップエリア */
+        .drop-zone {
+            border: 3px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 4rem 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+        }
+
+        .drop-zone:hover {
+            border-color: var(--primary-color);
+            background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+        }
+
+        .drop-zone.drag-over {
+            border-color: var(--primary-color);
+            background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 1.5rem;
+            background: linear-gradient(135deg, var(--primary-color) 0%, #9f7aea 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.4);
+            }
+            70% {
+                box-shadow: 0 0 0 20px rgba(102, 126, 234, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(102, 126, 234, 0);
+            }
+        }
+
+        .upload-icon svg {
+            width: 40px;
+            height: 40px;
+            fill: white;
+        }
+
+        .drop-zone h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .drop-zone p {
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+        }
+
+        /* ファイル選択ボタン */
+        .file-input {
+            display: none;
+        }
+
+        .file-button {
+            display: inline-block;
+            background: var(--primary-color);
+            color: white;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: none;
+            font-size: 1rem;
+        }
+
+        .file-button:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        /* ファイル情報表示 */
+        .file-info {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: var(--bg-color);
+            border-radius: 8px;
+            display: none;
+        }
+
+        .file-info.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .file-info h4 {
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .file-info p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        /* アップロードボタン */
+        .upload-button {
+            width: 100%;
+            padding: 1rem;
+            background: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 1.5rem;
+            display: none;
+        }
+
+        .upload-button.show {
+            display: block;
+        }
+
+        .upload-button:hover {
+            background: #38a169;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
+        }
+
+        .upload-button:disabled {
+            background: var(--text-secondary);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* プログレスバー */
+        .progress-container {
+            margin-top: 2rem;
+            display: none;
+        }
+
+        .progress-container.show {
+            display: block;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            width: 0;
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-top: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        /* 成功メッセージ */
+        .success-message {
+            display: none;
+            margin-top: 2rem;
+            padding: 1rem;
+            background: #c6f6d5;
+            border: 1px solid #9ae6b4;
+            border-radius: 8px;
+            color: #276749;
+            text-align: center;
+            animation: slideIn 0.3s ease;
+        }
+
+        .success-message.show {
+            display: block;
+        }
+
+        /* レスポンシブ */
+        @media (max-width: 640px) {
+            .header h1 {
+                font-size: 1.5rem;
+            }
+            
+            .upload-card {
+                padding: 2rem 1.5rem;
+            }
+            
+            .drop-zone {
+                padding: 3rem 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <h1>FAQ Bot Manager</h1>
+            <p>簡単3ステップでFAQデータを登録</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="upload-card">
+            <div class="drop-zone" id="dropZone">
+                <div class="upload-icon">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/>
+                    </svg>
+                </div>
+                <h3>CSVファイルをドロップ</h3>
+                <p>または</p>
+                <label for="fileInput" class="file-button">
+                    ファイルを選択
+                </label>
+                <input type="file" id="fileInput" class="file-input" accept=".csv">
+            </div>
+
+            <div class="file-info" id="fileInfo">
+                <h4>選択されたファイル</h4>
+                <p id="fileName"></p>
+                <p id="fileSize"></p>
+            </div>
+
+            <button class="upload-button" id="uploadButton">
+                アップロードして処理を開始
+            </button>
+
+            <div class="progress-container" id="progressContainer">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <p class="progress-text" id="progressText">アップロード中...</p>
+            </div>
+
+            <div class="success-message" id="successMessage">
+                ✅ アップロードが完了しました！
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // DOM要素の取得
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const uploadButton = document.getElementById('uploadButton');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const successMessage = document.getElementById('successMessage');
+
+        let selectedFile = null;
+
+        // ドラッグ&ドロップイベント
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('drag-over');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type === 'text/csv') {
+                handleFile(files[0]);
+            } else {
+                alert('CSVファイルを選択してください。');
+            }
+        });
+
+        // クリックでファイル選択
+        dropZone.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // ファイル選択イベント
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        // ファイル処理
+        function handleFile(file) {
+            if (file.type !== 'text/csv') {
+                alert('CSVファイルを選択してください。');
+                return;
+            }
+
+            selectedFile = file;
+            fileName.textContent = file.name;
+            fileSize.textContent = `ファイルサイズ: ${formatFileSize(file.size)}`;
+            fileInfo.classList.add('show');
+            uploadButton.classList.add('show');
+            successMessage.classList.remove('show');
+        }
+
+        // ファイルサイズのフォーマット
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // アップロード処理
+        uploadButton.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            uploadButton.disabled = true;
+            progressContainer.classList.add('show');
+            progressFill.style.width = '0%';
+
+            // アップロードのシミュレーション
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 10;
+                progressFill.style.width = progress + '%';
+                progressText.textContent = `処理中... ${progress}%`;
+
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    progressText.textContent = '処理完了！';
+                    setTimeout(() => {
+                        progressContainer.classList.remove('show');
+                        successMessage.classList.add('show');
+                        uploadButton.disabled = false;
+                        resetForm();
+                    }, 1000);
+                }
+            }, 200);
+
+            // 実際のアップロード処理はここに実装
+            // const formData = new FormData();
+            // formData.append('file', selectedFile);
+            // await fetch('/api/upload', { method: 'POST', body: formData });
+        });
+
+        // フォームのリセット
+        function resetForm() {
+            setTimeout(() => {
+                fileInfo.classList.remove('show');
+                uploadButton.classList.remove('show');
+                selectedFile = null;
+                fileInput.value = '';
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
