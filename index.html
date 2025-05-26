@@ -98,11 +98,10 @@
             display: block;
         }
 
-        /* 2カラムレイアウト */
-        .two-column {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
+        /* 縦並びレイアウト */
+        .vertical-layout {
+            max-width: 800px;
+            margin: 0 auto;
         }
 
         /* カード */
@@ -332,10 +331,6 @@
 
         /* レスポンシブ */
         @media (max-width: 768px) {
-            .two-column {
-                grid-template-columns: 1fr;
-            }
-
             .form-row {
                 grid-template-columns: 1fr;
             }
@@ -353,6 +348,10 @@
             .method-tab.active {
                 border-left-color: var(--primary-color);
                 border-bottom-color: transparent;
+            }
+
+            .card {
+                padding: 1.5rem;
             }
         }
     </style>
@@ -378,8 +377,8 @@
 
         <!-- クロールタブ -->
         <div id="crawl-tab" class="tab-content active">
-            <div class="two-column">
-                <!-- 左側：クロール設定 -->
+            <div class="vertical-layout">
+                <!-- クロール設定 -->
                 <div class="card">
                     <h2>
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -425,7 +424,7 @@
                     <div class="message message-error" id="crawlError"></div>
                 </div>
 
-                <!-- 右側：結果とベクトル化 -->
+                <!-- 結果とベクトル化 -->
                 <div class="card" id="crawlResultCard" style="display: none;">
                     <h2>クロール結果</h2>
                     
@@ -461,8 +460,8 @@
 
         <!-- アップロードタブ -->
         <div id="upload-tab" class="tab-content">
-            <div class="two-column">
-                <!-- 左側：CSVアップロード -->
+            <div class="vertical-layout">
+                <!-- CSVアップロード -->
                 <div class="card">
                     <h2>
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -490,7 +489,7 @@
                     <div class="message message-error" id="uploadError"></div>
                 </div>
 
-                <!-- 右側：アップロード結果 -->
+                <!-- アップロード結果 -->
                 <div class="card" id="uploadResultCard" style="display: none;">
                     <h2>アップロードファイル</h2>
                     
