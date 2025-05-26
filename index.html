@@ -689,7 +689,11 @@
             }
         });
 
-        dropZone.addEventListener('click', () => {
+        dropZone.addEventListener('click', (e) => {
+            // labelタグのクリックの場合は何もしない（二重実行防止）
+            if (e.target.tagName === 'LABEL' || e.target.closest('label')) {
+                return;
+            }
             fileInput.click();
         });
 
